@@ -3,12 +3,24 @@ require_once 'conexion.php';
 
 $headers = getallheaders();
 $token = str_replace('Bearer ', '', $headers['Authorization'] ?? '');
+
+if (empty($token)) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Token requerido']);
+    exit;
+}
+
 $usuario_id = explode(':', base64_decode($token))[0];
 
 $data = json_decode(file_get_contents('php://input'), true);
 $restaurante_id = $data['restaurante_id'] ?? 0;
 $total = $data['total'] ?? 0;
 $items = $data['items'] ?? [];
+
+if (empty($items)) {
+    echo json_encode(['error' => 'Carrito vacío']);
+    exit;
+}
 
 $conn->begin_transaction();
 
@@ -31,7 +43,7 @@ try {
     
 } catch (Exception $e) {
     $conn->rollback();
-    echo json_encode(['error' => 'Error al crear pedido: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Error: ' . $e->getMessage()]);
 }
 
 $conn->close();
