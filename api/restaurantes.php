@@ -1,7 +1,7 @@
 <?php
 require_once 'conexion.php';
 
-$sql = "SELECT * FROM restaurantes";
+$sql = "SELECT id, nombre, descripcion, imagen FROM restaurantes";
 $result = $conn->query($sql);
 
 $restaurantes = [];
