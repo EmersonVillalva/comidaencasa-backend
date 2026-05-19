@@ -15,7 +15,7 @@ $stmt->bind_param("ssss", $nombre, $email, $password, $direccion);
 if ($stmt->execute()) {
     echo json_encode(['mensaje' => 'Usuario registrado con éxito']);
 } else {
-    echo json_encode(['error' => 'Error al registrar usuario: ' . $conn->error]);
+    echo json_encode(['error' => 'Error al registrar: ' . $conn->error]);
 }
 
 $conn->close();
