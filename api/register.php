@@ -8,6 +8,11 @@ $email = $data['email'] ?? '';
 $password = $data['password'] ?? '';
 $direccion = $data['direccion'] ?? '';
 
+if (empty($email) || empty($password)) {
+    echo json_encode(['error' => 'Email y contraseña requeridos']);
+    exit;
+}
+
 $sql = "INSERT INTO usuarios (nombre, email, password, rol, direccion) VALUES (?, ?, ?, 'cliente', ?)";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("ssss", $nombre, $email, $password, $direccion);
