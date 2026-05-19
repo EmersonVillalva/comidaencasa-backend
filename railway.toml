@@ -2,7 +2,7 @@
   builder = "nixpacks"
 
 [deploy]
-  startCommand = "php -S 0.0.0.0:8000 -t api"
-  healthcheckPath = "/api/restaurantes.php"
+  startCommand = "php -S 0.0.0.0:${PORT:-8000} -t api"
+  healthcheckPath = "/health.php"
   numReplicas = 1
   restartPolicyType = "ON_FAILURE"
