@@ -7,15 +7,7 @@ $nombre = $data['nombre'] ?? '';
 $email = $data['email'] ?? '';
 $password = $data['password'] ?? '';
 $rol = $data['rol'] ?? 'cliente';
-$direccion = $data['direccion'] ?? '';
-$nombre_restaurante = $data['nombre_restaurante'] ?? '';
-$descripcion_restaurante = $data['descripcion_restaurante'] ?? '';
-
-// Validar rol
-$roles_validos = ['cliente', 'restaurante', 'repartidor'];
-if (!in_array($rol, $roles_validos)) {
-    $rol = 'cliente';
-}
+$ciudad = $data['ciudad'] ?? '';
 
 if (empty($email) || empty($password)) {
     echo json_encode(['error' => 'Email y contraseña requeridos']);
@@ -38,15 +30,23 @@ $restaurante_id = null;
 
 // Si es restaurante, crear el restaurante primero
 if ($rol === 'restaurante') {
+    $nombre_restaurante = $data['nombre_restaurante'] ?? '';
+    $tipo_comida = $data['tipo_comida'] ?? 'Otros';
+    
     if (empty($nombre_restaurante)) {
         echo json_encode(['error' => 'Debes ingresar el nombre del restaurante']);
         exit;
     }
     
+    if (empty($ciudad)) {
+        echo json_encode(['error' => 'Debes ingresar la ciudad del restaurante']);
+        exit;
+    }
+    
     // Insertar el restaurante
-    $sqlRest = "INSERT INTO restaurantes (nombre, descripcion) VALUES (?, ?)";
+    $sqlRest = "INSERT INTO restaurantes (nombre, tipo_comida, ciudad) VALUES (?, ?, ?)";
     $stmtRest = $conn->prepare($sqlRest);
-    $stmtRest->bind_param("ss", $nombre_restaurante, $descripcion_restaurante);
+    $stmtRest->bind_param("sss", $nombre_restaurante, $tipo_comida, $ciudad);
     
     if (!$stmtRest->execute()) {
         echo json_encode(['error' => 'Error al crear el restaurante: ' . $conn->error]);
@@ -57,18 +57,17 @@ if ($rol === 'restaurante') {
 }
 
 // Insertar usuario
-$sql = "INSERT INTO usuarios (nombre, email, password, rol, direccion, restaurante_id) VALUES (?, ?, ?, ?, ?, ?)";
+$sql = "INSERT INTO usuarios (nombre, email, password, rol, ciudad, restaurante_id) VALUES (?, ?, ?, ?, ?, ?)";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("sssssi", $nombre, $email, $password, $rol, $direccion, $restaurante_id);
+$stmt->bind_param("sssssi", $nombre, $email, $password, $rol, $ciudad, $restaurante_id);
 
 if ($stmt->execute()) {
     echo json_encode([
-        'mensaje' => $rol === 'restaurante' ? 'Restaurante y usuario creados con éxito' : 'Usuario registrado con éxito',
-        'rol' => $rol,
-        'restaurante_id' => $restaurante_id
+        'mensaje' => $rol === 'restaurante' ? 'Restaurante registrado con éxito' : 'Usuario registrado con éxito',
+        'rol' => $rol
     ]);
 } else {
-    echo json_encode(['error' => 'Error al registrar usuario: ' . $conn->error]);
+    echo json_encode(['error' => 'Error al registrar: ' . $conn->error]);
 }
 
 $conn->close();
