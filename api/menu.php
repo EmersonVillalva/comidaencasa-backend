@@ -3,6 +3,11 @@ require_once 'conexion.php';
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
+if ($id <= 0) {
+    echo json_encode([]);
+    exit;
+}
+
 $sql = "SELECT * FROM menu WHERE restaurante_id = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $id);
