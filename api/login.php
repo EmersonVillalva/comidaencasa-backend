@@ -22,7 +22,8 @@ if ($row = $result->fetch_assoc()) {
                 'id' => $row['id'],
                 'nombre' => $row['nombre'],
                 'email' => $row['email'],
-                'rol' => $row['rol']
+                'rol' => $row['rol'],
+                'restaurante_id' => $row['restaurante_id']
             ]
         ]);
     } else {
