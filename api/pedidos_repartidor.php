@@ -54,21 +54,19 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    echo json_encode(['pedido' => null, 'mensaje' => 'No hay pedidos disponibles en tu ciudad']);
+    echo json_encode(['mensaje' => 'No hay pedidos disponibles', 'pedido' => null]);
     exit;
 }
 
 $pedido = $result->fetch_assoc();
 
 echo json_encode([
-    'pedido' => [
-        'id' => $pedido['id'],
-        'restaurante' => $pedido['restaurante_nombre'],
-        'cliente' => $pedido['cliente_nombre'],
-        'cliente_direccion' => $pedido['cliente_direccion'] ?? 'No especificada',
-        'total' => floatval($pedido['total']),
-        'ciudad' => $pedido['restaurante_ciudad'] ?? 'General'
-    ]
+    'id' => $pedido['id'],
+    'restaurante' => $pedido['restaurante_nombre'],
+    'cliente' => $pedido['cliente_nombre'],
+    'cliente_direccion' => $pedido['cliente_direccion'] ?? 'No especificada',
+    'total' => floatval($pedido['total']),
+    'ciudad' => $pedido['restaurante_ciudad'] ?? 'General'
 ]);
 
 $conn->close();
