@@ -1,4 +1,16 @@
 <?php
+// Cabeceras CORS
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json');
+
+// Responder a peticiones OPTIONS (preflight)
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 require_once 'conexion.php';
 
 $headers = getallheaders();
@@ -23,7 +35,7 @@ if (!in_array($nuevo_estado, $estados_validos)) {
     exit;
 }
 
-// Actualizar estado (cualquier usuario puede actualizar según su rol)
+// Actualizar estado
 $sqlUpdate = "UPDATE pedidos SET estado = ? WHERE id = ?";
 $stmtUpdate = $conn->prepare($sqlUpdate);
 $stmtUpdate->bind_param("si", $nuevo_estado, $pedido_id);
