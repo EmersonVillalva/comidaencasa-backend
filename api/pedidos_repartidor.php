@@ -1,4 +1,16 @@
 <?php
+// Cabeceras CORS
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json');
+
+// Responder a peticiones OPTIONS (preflight)
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 require_once 'conexion.php';
 
 $headers = getallheaders();
@@ -27,7 +39,6 @@ if (!$usuario || $usuario['rol'] !== 'repartidor') {
 }
 
 // Obtener pedidos en estado "en camino" (para repartidores)
-// También se pueden mostrar pedidos "preparando" que aún no han sido asignados
 $sql = "SELECT p.*, r.nombre as restaurante_nombre, u.nombre as cliente_nombre, u.direccion as cliente_direccion
         FROM pedidos p 
         JOIN restaurantes r ON p.restaurante_id = r.id 
