@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
+
 // === CONFIGURACIÓN PARA RAILWAY ===
 // Railway inyecta estas variables automáticamente
 $host = getenv('MYSQLHOST') ?: 'localhost';
