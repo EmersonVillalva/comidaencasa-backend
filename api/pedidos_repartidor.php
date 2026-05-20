@@ -22,7 +22,6 @@ if (empty($token)) {
 
 $repartidor_id = explode(':', base64_decode($token))[0];
 
-// Verificar repartidor
 $sqlUser = "SELECT id, nombre, ciudad, rol FROM usuarios WHERE id = ?";
 $stmtUser = $conn->prepare($sqlUser);
 $stmtUser->bind_param("i", $repartidor_id);
@@ -38,7 +37,6 @@ if (!$repartidor || $repartidor['rol'] !== 'repartidor') {
 
 $ciudad_repartidor = $repartidor['ciudad'] ?? 'General';
 
-// Buscar pedido pendiente
 $sql = "SELECT p.*, r.nombre as restaurante_nombre, r.ciudad as restaurante_ciudad,
         u.nombre as cliente_nombre, u.direccion as cliente_direccion
         FROM pedidos p 
@@ -56,7 +54,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    echo json_encode(['pedido' => null, 'mensaje' => 'No hay pedidos disponibles']);
+    echo json_encode(['pedido' => null, 'mensaje' => 'No hay pedidos disponibles en tu ciudad']);
     exit;
 }
 
@@ -69,7 +67,9 @@ echo json_encode([
         'cliente' => $pedido['cliente_nombre'],
         'cliente_direccion' => $pedido['cliente_direccion'] ?? 'No especificada',
         'total' => floatval($pedido['total']),
-        'ciudad' => $pedido['restaurante_ciudad']
+        'ciudad' => $pedido['restaurante_ciudad'] ?? 'General'
     ]
 ]);
+
+$conn->close();
 ?>
