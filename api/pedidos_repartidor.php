@@ -5,7 +5,6 @@ header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json');
 
-// Responder a peticiones OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
@@ -22,45 +21,64 @@ if (empty($token)) {
     exit;
 }
 
-$usuario_id = explode(':', base64_decode($token))[0];
+$repartidor_id = explode(':', base64_decode($token))[0];
 
 // Verificar que el usuario es repartidor
-$sqlUser = "SELECT rol FROM usuarios WHERE id = ?";
+$sqlUser = "SELECT id, nombre, ciudad, rol FROM usuarios WHERE id = ?";
 $stmtUser = $conn->prepare($sqlUser);
-$stmtUser->bind_param("i", $usuario_id);
+$stmtUser->bind_param("i", $repartidor_id);
 $stmtUser->execute();
 $userResult = $stmtUser->get_result();
-$usuario = $userResult->fetch_assoc();
+$repartidor = $userResult->fetch_assoc();
 
-if (!$usuario || $usuario['rol'] !== 'repartidor') {
+if (!$repartidor || $repartidor['rol'] !== 'repartidor') {
     http_response_code(403);
     echo json_encode(['error' => 'Acceso denegado. Solo para repartidores.']);
     exit;
 }
 
-// Obtener pedidos en estado "en camino" (para repartidores)
-$sql = "SELECT p.*, r.nombre as restaurante_nombre, u.nombre as cliente_nombre, u.direccion as cliente_direccion
+$ciudad_repartidor = $repartidor['ciudad'] ?? 'General';
+
+// Obtener pedidos pendientes de la ciudad del repartidor
+// que no tengan repartidor asignado y que el repartidor no los haya rechazado
+$sql = "SELECT p.*, r.nombre as restaurante_nombre, r.direccion as restaurante_direccion, 
+        u.nombre as cliente_nombre, u.direccion as cliente_direccion
         FROM pedidos p 
         JOIN restaurantes r ON p.restaurante_id = r.id 
         JOIN usuarios u ON p.usuario_id = u.id
-        WHERE p.estado = 'en camino' OR p.estado = 'preparando'
-        ORDER BY p.fecha ASC";
+        WHERE p.estado = 'pendiente' 
+        AND p.repartidor_id IS NULL
+        AND (p.rechazado_por IS NULL OR p.rechazado_por NOT LIKE CONCAT('%', ?, '%'))
+        AND (r.ciudad = ? OR r.ciudad = 'General')
+        ORDER BY p.fecha ASC
+        LIMIT 1";
 
-$result = $conn->query($sql);
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("is", $repartidor_id, $ciudad_repartidor);
+$stmt->execute();
+$result = $stmt->get_result();
 
-$pedidos = [];
-while ($row = $result->fetch_assoc()) {
-    $pedidos[] = [
-        'id' => $row['id'],
-        'restaurante' => $row['restaurante_nombre'],
-        'cliente' => $row['cliente_nombre'],
-        'direccion' => $row['cliente_direccion'] ?? 'No especificada',
-        'total' => floatval($row['total']),
-        'estado' => $row['estado'],
-        'fecha' => $row['fecha']
-    ];
+if ($result->num_rows === 0) {
+    echo json_encode([
+        'pedido' => null,
+        'mensaje' => 'No hay pedidos disponibles en tu ciudad'
+    ]);
+    exit;
 }
 
-echo json_encode($pedidos);
+$pedido = $result->fetch_assoc();
+
+echo json_encode([
+    'pedido' => [
+        'id' => $pedido['id'],
+        'restaurante' => $pedido['restaurante_nombre'],
+        'restaurante_direccion' => $pedido['restaurante_direccion'] ?? 'No especificada',
+        'cliente' => $pedido['cliente_nombre'],
+        'cliente_direccion' => $pedido['cliente_direccion'] ?? 'No especificada',
+        'total' => floatval($pedido['total']),
+        'distancia' => rand(1, 5) . ' km' // Simulado, se puede calcular después
+    ]
+]);
+
 $conn->close();
 ?>
