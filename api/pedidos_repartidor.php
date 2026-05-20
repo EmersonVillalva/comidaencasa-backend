@@ -1,5 +1,4 @@
 <?php
-// Cabeceras CORS
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -23,7 +22,7 @@ if (empty($token)) {
 
 $repartidor_id = explode(':', base64_decode($token))[0];
 
-// Verificar que el usuario es repartidor
+// Verificar repartidor
 $sqlUser = "SELECT id, nombre, ciudad, rol FROM usuarios WHERE id = ?";
 $stmtUser = $conn->prepare($sqlUser);
 $stmtUser->bind_param("i", $repartidor_id);
@@ -33,36 +32,31 @@ $repartidor = $userResult->fetch_assoc();
 
 if (!$repartidor || $repartidor['rol'] !== 'repartidor') {
     http_response_code(403);
-    echo json_encode(['error' => 'Acceso denegado. Solo para repartidores.']);
+    echo json_encode(['error' => 'Acceso denegado']);
     exit;
 }
 
 $ciudad_repartidor = $repartidor['ciudad'] ?? 'General';
 
-// Obtener pedidos pendientes de la ciudad del repartidor
-// que no tengan repartidor asignado y que el repartidor no los haya rechazado
-$sql = "SELECT p.*, r.nombre as restaurante_nombre, r.direccion as restaurante_direccion, 
+// Buscar pedido pendiente
+$sql = "SELECT p.*, r.nombre as restaurante_nombre, r.ciudad as restaurante_ciudad,
         u.nombre as cliente_nombre, u.direccion as cliente_direccion
         FROM pedidos p 
         JOIN restaurantes r ON p.restaurante_id = r.id 
         JOIN usuarios u ON p.usuario_id = u.id
         WHERE p.estado = 'pendiente' 
         AND p.repartidor_id IS NULL
-        AND (p.rechazado_por IS NULL OR p.rechazado_por NOT LIKE CONCAT('%', ?, '%'))
         AND (r.ciudad = ? OR r.ciudad = 'General')
         ORDER BY p.fecha ASC
         LIMIT 1";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("is", $repartidor_id, $ciudad_repartidor);
+$stmt->bind_param("s", $ciudad_repartidor);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    echo json_encode([
-        'pedido' => null,
-        'mensaje' => 'No hay pedidos disponibles en tu ciudad'
-    ]);
+    echo json_encode(['pedido' => null, 'mensaje' => 'No hay pedidos disponibles']);
     exit;
 }
 
@@ -72,13 +66,10 @@ echo json_encode([
     'pedido' => [
         'id' => $pedido['id'],
         'restaurante' => $pedido['restaurante_nombre'],
-        'restaurante_direccion' => $pedido['restaurante_direccion'] ?? 'No especificada',
         'cliente' => $pedido['cliente_nombre'],
         'cliente_direccion' => $pedido['cliente_direccion'] ?? 'No especificada',
         'total' => floatval($pedido['total']),
-        'distancia' => rand(1, 5) . ' km' // Simulado, se puede calcular después
+        'ciudad' => $pedido['restaurante_ciudad']
     ]
 ]);
-
-$conn->close();
 ?>
