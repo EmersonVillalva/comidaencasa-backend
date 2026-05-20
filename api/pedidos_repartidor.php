@@ -44,12 +44,13 @@ $sql = "SELECT p.*, r.nombre as restaurante_nombre, r.ciudad as restaurante_ciud
         JOIN usuarios u ON p.usuario_id = u.id
         WHERE p.estado = 'pendiente' 
         AND p.repartidor_id IS NULL
+        AND (p.rechazado_por IS NULL OR p.rechazado_por NOT LIKE CONCAT('%', ?, '%'))
         AND (r.ciudad = ? OR r.ciudad = 'General')
         ORDER BY p.fecha ASC
         LIMIT 1";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("s", $ciudad_repartidor);
+$stmt->bind_param("ss", $repartidor_id, $ciudad_repartidor);
 $stmt->execute();
 $result = $stmt->get_result();
 
