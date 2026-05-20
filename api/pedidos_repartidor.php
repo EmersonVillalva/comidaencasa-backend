@@ -20,18 +20,19 @@ $stmtUser->execute();
 $userResult = $stmtUser->get_result();
 $usuario = $userResult->fetch_assoc();
 
-if ($usuario['rol'] !== 'repartidor') {
+if (!$usuario || $usuario['rol'] !== 'repartidor') {
     http_response_code(403);
-    echo json_encode(['error' => 'Acceso denegado']);
+    echo json_encode(['error' => 'Acceso denegado. Solo para repartidores.']);
     exit;
 }
 
 // Obtener pedidos en estado "en camino" (para repartidores)
+// También se pueden mostrar pedidos "preparando" que aún no han sido asignados
 $sql = "SELECT p.*, r.nombre as restaurante_nombre, u.nombre as cliente_nombre, u.direccion as cliente_direccion
         FROM pedidos p 
         JOIN restaurantes r ON p.restaurante_id = r.id 
         JOIN usuarios u ON p.usuario_id = u.id
-        WHERE p.estado = 'en camino'
+        WHERE p.estado = 'en camino' OR p.estado = 'preparando'
         ORDER BY p.fecha ASC";
 
 $result = $conn->query($sql);
@@ -42,8 +43,8 @@ while ($row = $result->fetch_assoc()) {
         'id' => $row['id'],
         'restaurante' => $row['restaurante_nombre'],
         'cliente' => $row['cliente_nombre'],
-        'direccion' => $row['cliente_direccion'],
-        'total' => $row['total'],
+        'direccion' => $row['cliente_direccion'] ?? 'No especificada',
+        'total' => floatval($row['total']),
         'estado' => $row['estado'],
         'fecha' => $row['fecha']
     ];
