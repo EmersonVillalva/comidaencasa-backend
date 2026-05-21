@@ -20,55 +20,39 @@ if (empty($token)) {
     exit;
 }
 
+// Obtener ID del repartidor
 $repartidor_id = explode(':', base64_decode($token))[0];
 
-$sqlUser = "SELECT id, nombre, ciudad, rol FROM usuarios WHERE id = ?";
-$stmtUser = $conn->prepare($sqlUser);
-$stmtUser->bind_param("i", $repartidor_id);
-$stmtUser->execute();
-$userResult = $stmtUser->get_result();
-$repartidor = $userResult->fetch_assoc();
-
-if (!$repartidor || $repartidor['rol'] !== 'repartidor') {
-    http_response_code(403);
-    echo json_encode(['error' => 'Acceso denegado']);
-    exit;
-}
-
-$ciudad_repartidor = $repartidor['ciudad'] ?? 'General';
-
-$sql = "SELECT p.*, r.nombre as restaurante_nombre, r.ciudad as restaurante_ciudad,
+// SIMPLE: Buscar pedidos pendientes SIN NINGÚN FILTRO
+$sql = "SELECT p.*, r.nombre as restaurante_nombre,
         u.nombre as cliente_nombre, u.direccion as cliente_direccion
         FROM pedidos p 
         JOIN restaurantes r ON p.restaurante_id = r.id 
         JOIN usuarios u ON p.usuario_id = u.id
         WHERE p.estado = 'pendiente' 
-        AND p.repartidor_id IS NULL
-        AND (p.rechazado_por IS NULL OR p.rechazado_por NOT LIKE CONCAT('%', ?, '%'))
-        AND (r.ciudad = ? OR r.ciudad = 'General')
+        AND (p.repartidor_id IS NULL OR p.repartidor_id = 0)
         ORDER BY p.fecha ASC
-        LIMIT 1";
+        LIMIT 5";
 
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("ss", $repartidor_id, $ciudad_repartidor);
-$stmt->execute();
-$result = $stmt->get_result();
+$result = $conn->query($sql);
 
-if ($result->num_rows === 0) {
-    echo json_encode(['mensaje' => 'No hay pedidos disponibles', 'pedido' => null]);
+if (!$result) {
+    echo json_encode(['error' => 'Error en consulta: ' . $conn->error]);
     exit;
 }
 
-$pedido = $result->fetch_assoc();
+$pedidos = [];
+while ($row = $result->fetch_assoc()) {
+    $pedidos[] = [
+        'id' => $row['id'],
+        'restaurante' => $row['restaurante_nombre'],
+        'cliente' => $row['cliente_nombre'],
+        'cliente_direccion' => $row['cliente_direccion'] ?? 'No especificada',
+        'total' => floatval($row['total']),
+        'estado' => $row['estado']
+    ];
+}
 
-echo json_encode([
-    'id' => $pedido['id'],
-    'restaurante' => $pedido['restaurante_nombre'],
-    'cliente' => $pedido['cliente_nombre'],
-    'cliente_direccion' => $pedido['cliente_direccion'] ?? 'No especificada',
-    'total' => floatval($pedido['total']),
-    'ciudad' => $pedido['restaurante_ciudad'] ?? 'General'
-]);
-
+echo json_encode(['pedidos' => $pedidos]);
 $conn->close();
 ?>
