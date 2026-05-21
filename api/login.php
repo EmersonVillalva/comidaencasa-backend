@@ -29,7 +29,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($row = $result->fetch_assoc()) {
-    // Verificar contraseña (texto plano, se puede mejorar con password_verify)
+    // Verificar contraseña (texto plano)
     if ($password == $row['password']) {
         $token = base64_encode($row['id'] . ':' . time());
         
@@ -40,7 +40,8 @@ if ($row = $result->fetch_assoc()) {
                 'nombre' => $row['nombre'],
                 'email' => $row['email'],
                 'rol' => $row['rol'],
-                'ciudad' => $row['ciudad'] ?? 'General'
+                'ciudad' => $row['ciudad'] ?? 'General',
+                'restaurante_id' => $row['restaurante_id'] ?? null
             ]
         ]);
     } else {
