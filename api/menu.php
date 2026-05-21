@@ -18,7 +18,7 @@ if ($restaurante_id <= 0) {
     exit;
 }
 
-$sql = "SELECT * FROM menu WHERE restaurante_id = ? ORDER BY id";
+$sql = "SELECT id, nombre, descripcion, precio FROM menu WHERE restaurante_id = ? ORDER BY id";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $restaurante_id);
 $stmt->execute();
