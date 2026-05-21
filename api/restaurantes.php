@@ -11,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once 'conexion.php';
 
-// Obtener ciudad desde la petición GET
 $ciudad = isset($_GET['ciudad']) ? $_GET['ciudad'] : '';
 $token = isset($_GET['token']) ? $_GET['token'] : '';
 
@@ -29,15 +28,15 @@ if (!empty($token)) {
     }
 }
 
-// Filtrar restaurantes por ciudad
+// Filtrar restaurantes por ciudad (sin imágenes)
 if (!empty($ciudad) && $ciudad !== 'General') {
-    $sql = "SELECT * FROM restaurantes WHERE ciudad = ? OR ciudad = 'General' ORDER BY nombre";
+    $sql = "SELECT id, nombre, descripcion, ciudad, tipo_comida FROM restaurantes WHERE ciudad = ? OR ciudad = 'General' ORDER BY nombre";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("s", $ciudad);
     $stmt->execute();
     $result = $stmt->get_result();
 } else {
-    $sql = "SELECT * FROM restaurantes ORDER BY nombre";
+    $sql = "SELECT id, nombre, descripcion, ciudad, tipo_comida FROM restaurantes ORDER BY nombre";
     $result = $conn->query($sql);
 }
 
