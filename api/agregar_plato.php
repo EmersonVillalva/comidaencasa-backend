@@ -20,32 +20,51 @@ if (empty($token)) {
     exit;
 }
 
-$repartidor_id = explode(':', base64_decode($token))[0];
+$usuario_id = explode(':', base64_decode($token))[0];
 
-$data = json_decode(file_get_contents('php://input'), true);
-$pedido_id = $data['pedido_id'] ?? 0;
+$sqlUser = "SELECT restaurante_id, rol FROM usuarios WHERE id = ?";
+$stmtUser = $conn->prepare($sqlUser);
+$stmtUser->bind_param("i", $usuario_id);
+$stmtUser->execute();
+$userResult = $stmtUser->get_result();
+$usuario = $userResult->fetch_assoc();
 
-// Verificar que el pedido existe y está pendiente
-$sqlCheck = "SELECT id FROM pedidos WHERE id = ? AND estado = 'pendiente' AND (repartidor_id IS NULL OR repartidor_id = 0)";
-$stmtCheck = $conn->prepare($sqlCheck);
-$stmtCheck->bind_param("i", $pedido_id);
-$stmtCheck->execute();
-$result = $stmtCheck->get_result();
-
-if ($result->num_rows === 0) {
-    echo json_encode(['error' => 'Pedido no disponible']);
+if (!$usuario || $usuario['rol'] !== 'restaurante') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Acceso denegado. Solo para restaurantes.']);
     exit;
 }
 
-// Asignar pedido al repartidor
-$sqlUpdate = "UPDATE pedidos SET repartidor_id = ?, estado = 'en camino' WHERE id = ?";
-$stmtUpdate = $conn->prepare($sqlUpdate);
-$stmtUpdate->bind_param("ii", $repartidor_id, $pedido_id);
+$restaurante_id = $usuario['restaurante_id'];
 
-if ($stmtUpdate->execute()) {
-    echo json_encode(['mensaje' => 'Pedido aceptado', 'pedido_id' => $pedido_id]);
+if (!$restaurante_id) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Tu cuenta no está vinculada a ningún restaurante']);
+    exit;
+}
+
+$data = json_decode(file_get_contents('php://input'), true);
+
+$nombre = $data['nombre'] ?? '';
+$descripcion = $data['descripcion'] ?? '';
+$precio = $data['precio'] ?? 0;
+
+if (empty($nombre) || $precio <= 0) {
+    echo json_encode(['error' => 'Nombre y precio son requeridos']);
+    exit;
+}
+
+$sql = "INSERT INTO menu (restaurante_id, nombre, descripcion, precio) VALUES (?, ?, ?, ?)";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("issd", $restaurante_id, $nombre, $descripcion, $precio);
+
+if ($stmt->execute()) {
+    echo json_encode([
+        'mensaje' => 'Plato agregado correctamente',
+        'id' => $conn->insert_id
+    ]);
 } else {
-    echo json_encode(['error' => 'Error al aceptar']);
+    echo json_encode(['error' => 'Error al agregar plato: ' . $conn->error]);
 }
 
 $conn->close();
