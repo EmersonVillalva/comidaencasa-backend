@@ -1,83 +1,51 @@
 <?php
-// Permitir peticiones desde cualquier origen (CORS)
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json');
 
-// Responder a la petición preflight OPTIONS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Conectar a la base de datos
 require_once 'conexion.php';
 
-// Obtener token de la cabecera Authorization
 $headers = getallheaders();
 $token = str_replace('Bearer ', '', $headers['Authorization'] ?? '');
 
-// Si no hay token, error 401
 if (empty($token)) {
     http_response_code(401);
     echo json_encode(['error' => 'Token requerido']);
     exit;
 }
 
-// Decodificar token para obtener ID del usuario
-$usuario_id = explode(':', base64_decode($token))[0];
+$repartidor_id = explode(':', base64_decode($token))[0];
 
-// Obtener restaurante_id y rol del usuario
-$sqlUser = "SELECT restaurante_id, rol FROM usuarios WHERE id = ?";
-$stmtUser = $conn->prepare($sqlUser);
-$stmtUser->bind_param("i", $usuario_id);
-$stmtUser->execute();
-$userResult = $stmtUser->get_result();
-$usuario = $userResult->fetch_assoc();
-
-// Solo restaurantes pueden agregar platos
-if (!$usuario || $usuario['rol'] !== 'restaurante') {
-    http_response_code(403);
-    echo json_encode(['error' => 'Acceso denegado. Solo para restaurantes.']);
-    exit;
-}
-
-// Verificar que el restaurante existe
-$restaurante_id = $usuario['restaurante_id'];
-
-if (!$restaurante_id) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Tu cuenta no está vinculada a ningún restaurante']);
-    exit;
-}
-
-// Leer datos del nuevo plato
 $data = json_decode(file_get_contents('php://input'), true);
+$pedido_id = $data['pedido_id'] ?? 0;
 
-$nombre = $data['nombre'] ?? '';
-$descripcion = $data['descripcion'] ?? '';
-$precio = $data['precio'] ?? 0;
+// Verificar que el pedido existe y está pendiente
+$sqlCheck = "SELECT id FROM pedidos WHERE id = ? AND estado = 'pendiente' AND (repartidor_id IS NULL OR repartidor_id = 0)";
+$stmtCheck = $conn->prepare($sqlCheck);
+$stmtCheck->bind_param("i", $pedido_id);
+$stmtCheck->execute();
+$result = $stmtCheck->get_result();
 
-// Validar campos obligatorios
-if (empty($nombre) || $precio <= 0) {
-    echo json_encode(['error' => 'Nombre y precio son requeridos']);
+if ($result->num_rows === 0) {
+    echo json_encode(['error' => 'Pedido no disponible']);
     exit;
 }
 
-// Insertar nuevo plato en la base de datos
-$sql = "INSERT INTO menu (restaurante_id, nombre, descripcion, precio) VALUES (?, ?, ?, ?)";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("issd", $restaurante_id, $nombre, $descripcion, $precio);
+// Asignar pedido al repartidor
+$sqlUpdate = "UPDATE pedidos SET repartidor_id = ?, estado = 'en camino' WHERE id = ?";
+$stmtUpdate = $conn->prepare($sqlUpdate);
+$stmtUpdate->bind_param("ii", $repartidor_id, $pedido_id);
 
-// Devolver respuesta
-if ($stmt->execute()) {
-    echo json_encode([
-        'mensaje' => 'Plato agregado correctamente',
-        'id' => $conn->insert_id
-    ]);
+if ($stmtUpdate->execute()) {
+    echo json_encode(['mensaje' => 'Pedido aceptado', 'pedido_id' => $pedido_id]);
 } else {
-    echo json_encode(['error' => 'Error al agregar plato: ' . $conn->error]);
+    echo json_encode(['error' => 'Error al aceptar']);
 }
 
 $conn->close();
