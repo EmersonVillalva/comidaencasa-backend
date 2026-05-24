@@ -1,50 +1,36 @@
 <?php
-// Cabeceras CORS
+header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Content-Type: application/json');
 
-// Responder a peticiones OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-require_once 'conexion.php';
 
-$headers = getallheaders();
-$token = str_replace('Bearer ', '', $headers['Authorization'] ?? '');
+// === CONFIGURACIÓN PARA RAILWAY === 
+// Railway inyecta estas variables automáticamente
+$host = getenv('MYSQLHOST') ?: 'localhost';
+$port = getenv('MYSQLPORT') ?: '3306';
+$user = getenv('MYSQLUSER') ?: 'root';
+$password = getenv('MYSQLPASSWORD') ?: '';
+$database = getenv('MYSQLDATABASE') ?: 'railway';
 
-if (empty($token)) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Token requerido']);
-    exit;
+// Intentar conexión
+try {
+    $conn = new mysqli($host, $user, $password, $database, (int)$port);
+    
+    if ($conn->connect_error) {
+        throw new Exception("Error de conexión: " . $conn->connect_error);
+    }
+    
+    $conn->set_charset("utf8");
+    
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => $e->getMessage()]);
+    exit();
 }
-
-$usuario_id = explode(':', base64_decode($token))[0];
-
-$data = json_decode(file_get_contents('php://input'), true);
-$pedido_id = $data['pedido_id'] ?? 0;
-$nuevo_estado = $data['estado'] ?? '';
-
-$estados_validos = ['pendiente', 'preparando', 'en camino', 'entregado', 'cancelado'];
-
-if (!in_array($nuevo_estado, $estados_validos)) {
-    echo json_encode(['error' => 'Estado no válido']);
-    exit;
-}
-
-// Actualizar estado
-$sqlUpdate = "UPDATE pedidos SET estado = ? WHERE id = ?";
-$stmtUpdate = $conn->prepare($sqlUpdate);
-$stmtUpdate->bind_param("si", $nuevo_estado, $pedido_id);
-
-if ($stmtUpdate->execute()) {
-    echo json_encode(['mensaje' => 'Estado actualizado correctamente', 'nuevo_estado' => $nuevo_estado]);
-} else {
-    echo json_encode(['error' => 'Error al actualizar']);
-}
-
-$conn->close();
 ?>
