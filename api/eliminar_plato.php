@@ -22,7 +22,6 @@ if (empty($token)) {
 
 $usuario_id = explode(':', base64_decode($token))[0];
 
-// Obtener restaurante_id del usuario
 $sqlUser = "SELECT restaurante_id, rol FROM usuarios WHERE id = ?";
 $stmtUser = $conn->prepare($sqlUser);
 $stmtUser->bind_param("i", $usuario_id);
@@ -38,34 +37,33 @@ if (!$usuario || $usuario['rol'] !== 'restaurante') {
 
 $restaurante_id = $usuario['restaurante_id'];
 
-if (!$restaurante_id) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Tu cuenta no está vinculada a ningún restaurante']);
-    exit;
-}
-
 $data = json_decode(file_get_contents('php://input'), true);
+$plato_id = $data['id'] ?? 0;
 
-$nombre = $data['nombre'] ?? '';
-$descripcion = $data['descripcion'] ?? '';
-$precio = $data['precio'] ?? 0;
-
-if (empty($nombre) || $precio <= 0) {
-    echo json_encode(['error' => 'Nombre y precio son requeridos']);
+if ($plato_id <= 0) {
+    echo json_encode(['error' => 'ID de plato requerido']);
     exit;
 }
 
-$sql = "INSERT INTO menu (restaurante_id, nombre, descripcion, precio) VALUES (?, ?, ?, ?)";
+$sqlCheck = "SELECT id FROM menu WHERE id = ? AND restaurante_id = ?";
+$stmtCheck = $conn->prepare($sqlCheck);
+$stmtCheck->bind_param("ii", $plato_id, $restaurante_id);
+$stmtCheck->execute();
+$result = $stmtCheck->get_result();
+
+if ($result->num_rows === 0) {
+    echo json_encode(['error' => 'Plato no encontrado o no pertenece a tu restaurante']);
+    exit;
+}
+
+$sql = "DELETE FROM menu WHERE id = ?";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("issd", $restaurante_id, $nombre, $descripcion, $precio);
+$stmt->bind_param("i", $plato_id);
 
 if ($stmt->execute()) {
-    echo json_encode([
-        'mensaje' => 'Plato agregado correctamente',
-        'id' => $conn->insert_id
-    ]);
+    echo json_encode(['mensaje' => 'Plato eliminado correctamente']);
 } else {
-    echo json_encode(['error' => 'Error al agregar plato: ' . $conn->error]);
+    echo json_encode(['error' => 'Error al eliminar plato']);
 }
 
 $conn->close();
